@@ -18,7 +18,7 @@ impl CliUploader {
     pub async fn upload_file(&self) -> Result<(), Box<dyn std::error::Error>> {
         let client = Client::new();
 
-        let url = Url::parse("http://[::1]:5050")?;
+        let url = Url::parse("http://[::1]:5050/upload")?;
 
         let file_content = fs::read(&self.file)?;
 
@@ -64,7 +64,7 @@ impl CliUploader {
         );
 
         let response = Client::new()
-            .post("http://[::1]:5050")
+            .post("http://[::1]:5050/upload")
             .multipart(form)
             .send()
             .await?;
