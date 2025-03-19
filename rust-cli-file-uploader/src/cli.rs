@@ -22,8 +22,6 @@ impl CliUploader {
 
         let file_content = fs::read(&self.file)?;
 
-        println!("File content length: {}", file_content.len());
-
         let resource_name = self
             .file
             .file_name()
@@ -36,7 +34,7 @@ impl CliUploader {
 
         let form = reqwest::multipart::Form::new()
             .text("resourceName", resource_name)
-            .part("FileData", part);
+            .part("fileupload", part);
 
         let response = client.post(url).multipart(form).send().await?;
 
@@ -49,6 +47,7 @@ impl CliUploader {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub async fn upload_file_1(&self) -> Result<(), Box<dyn std::error::Error>> {
         let mut file = File::open(&self.file)?;
 
