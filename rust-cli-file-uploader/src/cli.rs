@@ -1,5 +1,5 @@
-use reqwest::{multipart, Client};
-use std::fs::File;
+use reqwest::{multipart, Client, Url};
+use std::fs::{self, File};
 use std::io::Read;
 use std::path::PathBuf;
 use structopt::StructOpt;
@@ -15,49 +15,41 @@ pub struct CliUploader {
 }
 
 impl CliUploader {
-    // pub async fn upload_file(&self) -> Result<(), Box<dyn std::error::Error>> {
-    //     let client = Client::new();
-
-    //     let url = Url::parse(&format!("http://[::1]:5050"))?;
-
-    //     let file_content = fs::read(&self.file)?;
-
-    //     let part = multipart::Part::bytes(file_content).file_name(
-    //         self.file
-    //             .file_name()
-    //             .unwrap_or_default()
-    //             .to_string_lossy()
-    //             .to_string(),
-    //     );
-
-    //     let form = reqwest::multipart::Form::new()
-    //         .text(
-    //             "resourceName",
-    //             self.file
-    //                 .file_name()
-    //                 .unwrap_or_default()
-    //                 .to_string_lossy()
-    //                 .to_string(),
-    //         )
-    //         .part("FileData", part);
-
-    //     let response = client
-    //         .post(url)
-    //         .header("Content-Type", "multipart/form-data")
-    //         .multipart(form)
-    //         .send()
-    //         .await?;
-
-    //     if response.status().is_success() {
-    //         println!("file uploaded.. status: {}", response.status())
-    //     } else {
-    //         println!("failed to upload file. \n{}", response.status())
-    //     }
-
-    //     Ok(())
-    // }
-
     pub async fn upload_file(&self) -> Result<(), Box<dyn std::error::Error>> {
+        let client = Client::new();
+
+        let url = Url::parse("http://[::1]:5050")?;
+
+        let file_content = fs::read(&self.file)?;
+
+        println!("File content length: {}", file_content.len());
+
+        let resource_name = self
+            .file
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
+        println!("Resource Name: {}", resource_name);
+
+        let part = multipart::Part::bytes(file_content).file_name(resource_name.clone());
+
+        let form = reqwest::multipart::Form::new()
+            .text("resourceName", resource_name)
+            .part("FileData", part);
+
+        let response = client.post(url).multipart(form).send().await?;
+
+        if response.status().is_success() {
+            println!("file uploaded.. status: {}", response.status())
+        } else {
+            println!("failed to upload file. \n{}", response.status())
+        }
+
+        Ok(())
+    }
+
+    pub async fn upload_file_1(&self) -> Result<(), Box<dyn std::error::Error>> {
         let mut file = File::open(&self.file)?;
 
         let mut file_data = Vec::new();
