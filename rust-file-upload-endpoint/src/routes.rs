@@ -1,4 +1,7 @@
-use axum::{extract::Multipart, response::Html};
+use axum::{
+    extract::{multipart::Field, Multipart},
+    response::Html,
+};
 use std::{
     fs::{self, File},
     io::Write,
@@ -25,16 +28,21 @@ pub async fn index() -> Html<String> {
 }
 
 pub async fn upload(mut multipart: Multipart) {
-    while let Some(field) = multipart
-        .next_field()
-        .await
-        .expect("failed to extract field")
-    {
-        if field.name().unwrap() != "fileupload" {
+    while let Some(field) = match multipart.next_field().await {
+        Err(_) => None,
+        Ok(value) => value,
+    } {
+        if field.name().unwrap_or_default() != "fileupload" {
             continue;
         }
 
-        let file_name = field.file_name().unwrap();
+        let file_name = match field.file_name() {
+            Some(f) => f,
+            None => {
+                eprintln!("failed to retrieve file name:");
+                return;
+            }
+        };
 
         println!("Got file {}", file_name);
 
@@ -45,10 +53,27 @@ pub async fn upload(mut multipart: Multipart) {
 
         let file_path = format!("files/{}", file_name);
 
-        let data = field.bytes().await.unwrap();
+        let data = match field.bytes().await {
+            Ok(data) => data,
+            Err(_) => {
+                eprintln!("failed to read bytes");
+                return;
+            }
+        };
 
-        let mut file_handle = File::create(file_path).expect("failed to open file handle");
+        let mut file_handle = match File::create(file_path) {
+            Ok(f) => f,
+            Err(e) => {
+                eprintln!("failed to create file {}", e);
+                return;
+            }
+        };
 
-        file_handle.write_all(&data).expect("failed to write data");
+        match file_handle.write_all(&data) {
+            Ok(_) => {}
+            Err(_) => {
+                println!("failed to wirte to destination file")
+            }
+        }
     }
 }
