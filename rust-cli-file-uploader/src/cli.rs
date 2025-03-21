@@ -12,13 +12,15 @@ use structopt::StructOpt;
 pub struct CliUploader {
     #[structopt(short = "-f", long, parse(from_os_str))]
     pub file: PathBuf,
+    #[structopt(short = "-u", long)]
+    pub url: Url,
 }
 
 impl CliUploader {
     pub async fn upload_file(&self) -> Result<(), Box<dyn std::error::Error>> {
         let client = Client::new();
 
-        let url = Url::parse("http://[::1]:5050/upload")?;
+        let url = Url::parse(self.url.as_str())?;
 
         let file_content = fs::read(&self.file)?;
         let c = self.file.clone();
