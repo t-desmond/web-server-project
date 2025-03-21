@@ -21,14 +21,15 @@ impl CliUploader {
         let url = Url::parse("http://[::1]:5050/upload")?;
 
         let file_content = fs::read(&self.file)?;
-
+        let c = self.file.clone();
+        let path = c.display().to_string();
         let resource_name = self
             .file
             .file_name()
             .unwrap_or_default()
             .to_string_lossy()
             .to_string();
-        println!("Resource Name: {}", resource_name);
+        println!("Resource Name: {}, {}", resource_name, path);
 
         let part = multipart::Part::bytes(file_content).file_name(resource_name.clone());
 
