@@ -1,10 +1,13 @@
+use chrono::Local;
+use pbr::ProgressBar;
 use reqwest::{multipart, Client, Url};
+use rust_cli_file_uploader::compress;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
+use std::thread;
+use std::time::Duration;
 use structopt::StructOpt;
-use rust_cli_file_uploader::compress;
-
 #[derive(Debug, StructOpt)]
 #[structopt(
     name = "rust-cli-file-uploader",
@@ -23,31 +26,36 @@ impl CliUploader {
 
         let url = Url::parse(self.url.as_str())?;
 
+        let mut progress = ProgressBar::new(self.files.len() as u64);
+        progress.format("╢▌▌░╟");
         for file in &self.files {
+            progress.inc();
+            thread::sleep(Duration::from_secs(2));
+
             let compressed_data = compress(&file)?;
 
-            let resource_name = file
-            .file_name()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .to_string();
-
-            println!("Resource Name: {}", resource_name);
+            let resource_name = format!(
+                "{}_{}",
+                Local::now().format("%Y-%m-%d-%T").to_string(),
+                file.file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string()
+            );
 
             let part = multipart::Part::bytes(compressed_data).file_name(resource_name.clone());
 
             let form = reqwest::multipart::Form::new()
-                .text("resourceName", resource_name)
+                .text("resourceName", resource_name.clone())
                 .part("fileupload", part);
 
             let response = client.post(url.clone()).multipart(form).send().await?;
 
-            if response.status().is_success() {
-                println!("file uploaded.. status: {}", response.status())
-            } else {
-                println!("failed to upload file. \n{}", response.status())
+            if response.status().is_client_error() {
+                println!("failed to upload file: {}", resource_name);
             }
         }
+        progress.finish_print("done");
 
         Ok(())
     }

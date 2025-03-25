@@ -9,6 +9,8 @@ reqwest = { version = "0.12.15", features = ["multipart"] }
 serde_json = "1.0.104"
 tokio = {version = "1.29.1", features = ["full"] }
 flate2 = "*"
+chrono = "*"
+pbr = "1.1.1"
 
 [lib]
 path = "../rust-file-compression/src/lib.rs"
