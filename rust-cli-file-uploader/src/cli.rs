@@ -1,7 +1,7 @@
 use chrono::Local;
 use pbr::ProgressBar;
 use reqwest::{multipart, Client, Url};
-use rust_cli_file_uploader::compress;
+use rust_cli_file_uploader::compress_flate2;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
@@ -18,6 +18,10 @@ pub struct CliUploader {
     pub files: Vec<PathBuf>,
     #[structopt(short = "-u", long)]
     pub url: Url,
+    #[structopt(short = "-m", long)]
+    pub method: Option<String>,
+    #[structopt(short = "-l", long)]
+    pub level: Option<u32>
 }
 
 impl CliUploader {
@@ -27,29 +31,34 @@ impl CliUploader {
         let url = Url::parse(self.url.as_str())?;
 
         let mut progress = ProgressBar::new(self.files.len() as u64);
-        progress.format("╢▌▌░╟");
         for file in &self.files {
-            progress.inc();
             thread::sleep(Duration::from_secs(2));
 
-            let compressed_data = compress(&file)?;
-
+            let compressed_data = if &self.method.clone().unwrap_or("flate2".to_string()) == "flate2" {
+                compress_flate2(&file, self.level)?
+            } else {
+                println!("{:?} not implemented, going with default compression method", self.method.clone().unwrap());
+                compress_flate2(&file, None)?
+            };
+            
             let resource_name = format!(
                 "{}_{}",
                 Local::now().format("%Y-%m-%d-%T").to_string(),
                 file.file_name()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .to_string()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string()
             );
-
+            
             let part = multipart::Part::bytes(compressed_data).file_name(resource_name.clone());
-
+            
             let form = reqwest::multipart::Form::new()
-                .text("resourceName", resource_name.clone())
-                .part("fileupload", part);
-
-            let response = client.post(url.clone()).multipart(form).send().await?;
+            .text("resourceName", resource_name.clone())
+            .part("fileupload", part);
+        
+        let response = client.post(url.clone()).multipart(form).send().await?;
+        progress.format("╢▌▌░╟");
+        progress.inc();
 
             if response.status().is_client_error() {
                 println!("failed to upload file: {}", resource_name);
