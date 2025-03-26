@@ -1,10 +1,9 @@
-use axum::{
-    extract::{multipart::Field, Multipart},
-    response::Html,
-};
+use axum::{extract::Multipart, response::Html};
+use rust_file_upload_endpoint::compress_flate2;
 use std::{
     fs::{self, File},
     io::Write,
+    path::Path,
 };
 use tera::{Context, Tera};
 
@@ -37,7 +36,7 @@ pub async fn upload(mut multipart: Multipart) {
         }
 
         let file_name = match field.file_name() {
-            Some(f) => f,
+            Some(name) => name.to_string(), 
             None => {
                 eprintln!("failed to retrieve file name:");
                 return;
@@ -46,34 +45,45 @@ pub async fn upload(mut multipart: Multipart) {
 
         println!("Got file {}", file_name);
 
-        if fs::create_dir_all("files").is_ok() {
-        } else {
-            println!("Failed to create destination directory");
-        }
+        let create_dir = |path: &str| {
+            if fs::create_dir_all(path).is_err() {
+                eprintln!("Failed to create directory {}", path);
+            }
+        };
+
+        create_dir("files");
+        create_dir("compressed");
 
         let file_path = format!("files/{}", file_name);
 
         let data = match field.bytes().await {
             Ok(data) => data,
-            Err(_) => {
-                eprintln!("failed to read bytes");
-                return;
-            }
-        };
-
-        let mut file_handle = match File::create(file_path) {
-            Ok(f) => f,
             Err(e) => {
-                eprintln!("failed to create file {}", e);
+                eprintln!("failed to read bytes: {}", e);
                 return;
             }
         };
 
-        match file_handle.write_all(&data) {
-            Ok(_) => {}
-            Err(_) => {
-                println!("failed to wirte to destination file")
-            }
+        let create_and_write_file = |file_path: &str, data: &[u8]| -> Result<(), std::io::Error> {
+            let mut file_handle = File::create(file_path)?;
+            file_handle.write_all(data)?;
+            Ok(())
+        };
+
+        if let Err(e) = create_and_write_file(&file_path, &data) {
+            eprintln!("failed to write to destination file: {}", e);
+            return;
         }
+
+        if let Ok(compressed_bytes) = compress_flate2(Path::new(&file_path), None) {
+            let compressed_file_path = format!("compressed/{}.gz", file_name);
+            if let Err(e) = create_and_write_file(&compressed_file_path, &compressed_bytes) {
+                eprintln!("failed to write compressed bytes: {}", e);
+                return;
+            }
+        } else {
+            println!("No compression applied for {}", file_name);
+        }
+
     }
 }

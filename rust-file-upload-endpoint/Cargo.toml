@@ -7,3 +7,7 @@ edition = "2021"
 axum = { version = "0.8.1", features = ["multipart"] }
 tokio = { version = "1.44.0", features = ["full"] }
 tera = "1.20.0"
+flate2 = "1.1.0"
+
+[lib]
+path = "../rust-file-compression/src/lib.rs"

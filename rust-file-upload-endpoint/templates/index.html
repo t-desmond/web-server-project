@@ -53,11 +53,10 @@
 
 <body>
   <div class="container">
-    <form method="POST" enctype="multipart/form-data">
-      <input class="choose-file" type="file" name="fileupload" required>
-      <button type="submit">Upload File</button>
+    <form action="/upload" method="POST" enctype="multipart/form-data">
+      <input class="choose-file" type="file" name="fileupload" multiple required>
+      <button type="submit">Upload</button>
     </form>
   </div>
 </body>
-
 </html>
